@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -43,18 +44,98 @@ class DartHit {
   final String playerName;
   final int points;
   final DateTime timestamp;
-  final Offset position;
+  final String segmentName;
 
   DartHit({
     required this.playerName,
     required this.points,
     required this.timestamp,
-    required this.position,
+    required this.segmentName,
   });
 }
 
 // ==========================================
-// TELA INICIAL - CADASTRO DE JOGADORES
+// DARTBOARD DATA
+// ==========================================
+class DartboardSegment {
+  final Color color;
+  final int points;
+  final String name;
+  final double startAngle; // em graus
+  final double endAngle;
+
+  const DartboardSegment({
+    required this.color,
+    required this.points,
+    required this.name,
+    required this.startAngle,
+    required this.endAngle,
+  });
+}
+
+// Dados baseados na imagem original
+final List<DartboardSegment> segments = [
+  // Sentido horário, começando do topo (12h)
+  const DartboardSegment(
+    color: Color(0xFF2196F3), // Azul
+    points: 10,
+    name: 'Planeta Azul',
+    startAngle: 0,
+    endAngle: 45,
+  ),
+  const DartboardSegment(
+    color: Color(0xFFE91E63), // Rosa
+    points: -10,
+    name: 'Planeta Rosa',
+    startAngle: 45,
+    endAngle: 90,
+  ),
+  const DartboardSegment(
+    color: Color(0xFF4CAF50), // Verde
+    points: 80,
+    name: 'UFO Verde',
+    startAngle: 90,
+    endAngle: 135,
+  ),
+  const DartboardSegment(
+    color: Color(0xFFFF9800), // Laranja
+    points: 20,
+    name: 'Lua Laranja',
+    startAngle: 135,
+    endAngle: 180,
+  ),
+  const DartboardSegment(
+    color: Color(0xFF9C27B0), // Roxo
+    points: 100,
+    name: 'Sol Roxo',
+    startAngle: 180,
+    endAngle: 225,
+  ),
+  const DartboardSegment(
+    color: Color(0xFFFFEB3B), // Amarelo
+    points: 40,
+    name: 'Planeta Amarelo',
+    startAngle: 225,
+    endAngle: 270,
+  ),
+  const DartboardSegment(
+    color: Color(0xFF00BCD4), // Ciano
+    points: -30,
+    name: 'Nuvem',
+    startAngle: 270,
+    endAngle: 315,
+  ),
+  const DartboardSegment(
+    color: Color(0xFFFF5722), // Vermelho
+    points: 50,
+    name: 'Estrela',
+    startAngle: 315,
+    endAngle: 360,
+  ),
+];
+
+// ==========================================
+// TELA INICIAL
 // ==========================================
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -274,28 +355,7 @@ class _GameScreenState extends State<GameScreen> {
   late List<Player> players;
   int currentPlayerIndex = 0;
   final List<DartHit> hitHistory = [];
-  Offset? lastHitPosition;
-  int? lastHitPoints;
-
-  // Valores do tabuleiro (baseado na imagem original)
-  // A imagem tem um layout de dardos com valores específicos
-  // Vamos mapear regiões da imagem para valores
-  final Map<String, int> segmentValues = {
-    'planeta_rosa': 10,
-    'ufo_azul': 80,
-    'cometa': 10,
-    'estrela': -20,
-    'saturno': 60,
-    'astronauta': -10,
-    'nave': 30,
-    'lua': 20,
-    'sol': 100,
-    ' terra': 50,
-    'nuvem': -30,
-    'planeta_laranja': 40,
-    'anel': 10,
-    'meteoro': -10,
-  };
+  DartboardSegment? lastHitSegment;
 
   Player get currentPlayer => players[currentPlayerIndex];
 
@@ -305,53 +365,93 @@ class _GameScreenState extends State<GameScreen> {
     players = widget.players;
   }
 
-  void _handleBoardTap(TapDownDetails details) {
-    final RenderBox? renderBox = context.findRenderObject() as RenderBox?;
-    if (renderBox == null) return;
-
+  void _handleBoardTap(TapDownDetails details, Size boardSize) {
     final localPosition = details.localPosition;
-    final size = renderBox.size;
 
-    // Calcular qual segmento foi tocado baseado na posição
-    final points = _calculatePoints(localPosition, size);
+    // Calcular centro do tabuleiro
+    final centerX = boardSize.width / 2;
+    final centerY = boardSize.height / 2;
+
+    // Calcular ângulo do toque (em graus, sentido horário)
+    final dx = localPosition.dx - centerX;
+    final dy = localPosition.dy - centerY;
+    var angle = atan2(dy, dx) * 180 / pi;
+    if (angle < 0) angle += 360;
+
+    // Rotacionar 90 graus para começar do topo
+    angle = (angle + 90) % 360;
+
+    // Calcular distância do centro
+    final distance = sqrt(dx * dx + dy * dy);
+    final maxRadius = boardSize.width / 2;
+    final normalizedDistance = distance / maxRadius;
+
+    // Verificar se está dentro do tabuleiro
+    if (normalizedDistance > 1.0) return;
+
+    // Encontrar qual segmento foi tocado
+    DartboardSegment? hitSegment;
+    for (final segment in segments) {
+      if (angle >= segment.startAngle && angle < segment.endAngle) {
+        hitSegment = segment;
+        break;
+      }
+    }
+
+    if (hitSegment == null) return;
+
+    // Calcular pontos baseado na distância
+    int points;
+    if (normalizedDistance < 0.25) {
+      // Centro - maior pontuação
+      points = 100;
+    } else if (normalizedDistance < 0.5) {
+      // Anel interno
+      points = (hitSegment.points * 1.5).round();
+    } else if (normalizedDistance < 0.75) {
+      // Anel médio
+      points = hitSegment.points;
+    } else {
+      // Anel externo
+      points = (hitSegment.points * 0.5).round();
+    }
 
     setState(() {
-      lastHitPosition = localPosition;
-      lastHitPoints = points;
-
-      // Atualizar pontuação
+      lastHitSegment = hitSegment;
       currentPlayer.score += points;
       currentPlayer.history.add(points);
 
-      // Adicionar ao histórico
       hitHistory.insert(
         0,
         DartHit(
           playerName: currentPlayer.name,
           points: points,
           timestamp: DateTime.now(),
-          position: localPosition,
+          segmentName: hitSegment!.name,
         ),
       );
     });
 
-    // Feedback visual e sonoro
+    // Feedback
     HapticFeedback.mediumImpact();
 
-    // MostrarSnackBar
     ScaffoldMessenger.of(context).clearSnackBars();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              points > 0 ? Icons.add_circle : Icons.remove_circle,
-              color: Colors.white,
+            Container(
+              width: 20,
+              height: 20,
+              decoration: BoxDecoration(
+                color: hitSegment.color,
+                shape: BoxShape.circle,
+              ),
             ),
             const SizedBox(width: 8),
             Text(
-              '${currentPlayer.name}: ${points > 0 ? '+' : ''}$points pontos',
+              '${currentPlayer.name}: ${points > 0 ? '+' : ''}$points',
               style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
           ],
@@ -366,54 +466,14 @@ class _GameScreenState extends State<GameScreen> {
     );
   }
 
-  int _calculatePoints(Offset position, Size boardSize) {
-    // Centro do tabuleiro
-    final centerX = boardSize.width / 2;
-    final centerY = boardSize.height / 2;
-
-    // Calcular distância do centro
-    final dx = position.dx - centerX;
-    final dy = position.dy - centerY;
-    final distance = (dx * dx + dy * dy);
-
-    // Calcular ângulo (0 a 360 graus)
-    var angle = (dy < 0 ? 180 : 0) + (dx / (distance > 0 ? distance : 1) * 180 / 3.14159);
-    if (angle < 0) angle += 360;
-
-    // Determinar valor baseado na distância e ângulo
-    // Tabuleiro divide em 8 segmentos
-    final segmentIndex = (angle / 45).floor() % 8;
-
-    // Valores da imagem original (sentido horário a partir do topo)
-    final List<int> outerValues = [10, -10, 80, 20, 100, 40, -30, 50];
-    final List<int> innerValues = [10, 60, -20, 30, 50, 40, -10, 10];
-
-    // Determinar se é anel interno ou externo
-    final maxRadius = boardSize.width / 2;
-    final normalizedDistance = distance / (maxRadius * maxRadius);
-
-    if (normalizedDistance < 0.3) {
-      // Centro - maior pontuação
-      return 100;
-    } else if (normalizedDistance < 0.6) {
-      // Anel interno
-      return innerValues[segmentIndex];
-    } else {
-      // Anel externo
-      return outerValues[segmentIndex];
-    }
-  }
-
   void _nextPlayer() {
     setState(() {
       currentPlayerIndex = (currentPlayerIndex + 1) % players.length;
-      lastHitPosition = null;
-      lastHitPoints = null;
+      lastHitSegment = null;
     });
   }
 
   void _showRanking() {
-    // Ordenar jogadores por pontuação
     final sorted = List<Player>.from(players)
       ..sort((a, b) => b.score.compareTo(a.score));
 
@@ -485,7 +545,7 @@ class _GameScreenState extends State<GameScreen> {
               child: Column(
                 children: [
                   const Text(
-                    '📜 HISTÓRICO DE JOGADAS',
+                    '📜 HISTÓRICO',
                     style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
@@ -497,7 +557,7 @@ class _GameScreenState extends State<GameScreen> {
                     child: hitHistory.isEmpty
                         ? const Center(
                             child: Text(
-                              'Nenhuma jogada registrada',
+                              'Nenhuma jogada ainda',
                               style: TextStyle(color: Colors.white54),
                             ),
                           )
@@ -516,7 +576,7 @@ class _GameScreenState extends State<GameScreen> {
                                   style: const TextStyle(color: Colors.white),
                                 ),
                                 subtitle: Text(
-                                  '${hit.timestamp.hour.toString().padLeft(2, '0')}:${hit.timestamp.minute.toString().padLeft(2, '0')}:${hit.timestamp.second.toString().padLeft(2, '0')}',
+                                  hit.segmentName,
                                   style: const TextStyle(color: Colors.white54, fontSize: 12),
                                 ),
                                 trailing: Text(
@@ -547,7 +607,7 @@ class _GameScreenState extends State<GameScreen> {
         backgroundColor: const Color(0xFF1a0533),
         title: const Text('🔄 Zerar Placar?', style: TextStyle(color: Colors.white)),
         content: const Text(
-          'Isso irá apagar todas as pontuações. Continuar?',
+          'Isso irá apagar todas as pontuações.',
           style: TextStyle(color: Colors.white70),
         ),
         actions: [
@@ -563,8 +623,7 @@ class _GameScreenState extends State<GameScreen> {
                   player.history.clear();
                 }
                 hitHistory.clear();
-                lastHitPosition = null;
-                lastHitPoints = null;
+                lastHitSegment = null;
               });
               Navigator.pop(context);
             },
@@ -603,7 +662,6 @@ class _GameScreenState extends State<GameScreen> {
                     IconButton(
                       onPressed: _resetGame,
                       icon: const Icon(Icons.refresh, color: Colors.white70),
-                      tooltip: 'Zerar',
                     ),
                     const Text(
                       '🎯 DARDOS',
@@ -618,12 +676,10 @@ class _GameScreenState extends State<GameScreen> {
                         IconButton(
                           onPressed: _showHistory,
                           icon: const Icon(Icons.history, color: Colors.white70),
-                          tooltip: 'Histórico',
                         ),
                         IconButton(
                           onPressed: _showRanking,
                           icon: const Icon(Icons.emoji_events, color: Colors.amber),
-                          tooltip: 'Ranking',
                         ),
                       ],
                     ),
@@ -631,9 +687,9 @@ class _GameScreenState extends State<GameScreen> {
                 ),
               ),
 
-              // Placar dos jogadores
+              // Placar
               SizedBox(
-                height: 80,
+                height: 70,
                 child: ListView.builder(
                   scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -642,13 +698,9 @@ class _GameScreenState extends State<GameScreen> {
                     final player = players[index];
                     final isSelected = index == currentPlayerIndex;
                     return GestureDetector(
-                      onTap: () {
-                        setState(() {
-                          currentPlayerIndex = index;
-                        });
-                      },
+                      onTap: () => setState(() => currentPlayerIndex = index),
                       child: Container(
-                        width: 120,
+                        width: 110,
                         margin: const EdgeInsets.symmetric(horizontal: 4),
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
@@ -669,16 +721,16 @@ class _GameScreenState extends State<GameScreen> {
                               style: TextStyle(
                                 color: isSelected ? Colors.amber : Colors.white70,
                                 fontWeight: FontWeight.bold,
-                                fontSize: 14,
+                                fontSize: 13,
                               ),
                               overflow: TextOverflow.ellipsis,
                             ),
-                            const SizedBox(height: 4),
+                            const SizedBox(height: 2),
                             Text(
                               '${player.score}',
                               style: TextStyle(
                                 color: player.score >= 0 ? Colors.green : Colors.red,
-                                fontSize: 24,
+                                fontSize: 22,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
@@ -692,56 +744,41 @@ class _GameScreenState extends State<GameScreen> {
 
               const SizedBox(height: 8),
 
-              // Tabuleiro
+              // Último acerto
+              if (lastHitSegment != null)
+                Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 20),
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: lastHitSegment!.color.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: lastHitSegment!.color),
+                  ),
+                  child: Text(
+                    'Último: ${lastHitSegment!.name} (${lastHitSegment!.points > 0 ? '+' : ''}${lastHitSegment!.points})',
+                    style: TextStyle(color: lastHitSegment!.color, fontWeight: FontWeight.bold),
+                  ),
+                ),
+
+              const SizedBox(height: 8),
+
+              // Tabuleiro customizado
               Expanded(
                 child: Center(
                   child: GestureDetector(
-                    onTapDown: _handleBoardTap,
-                    child: Stack(
-                      children: [
-                        // Imagem do tabuleiro
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(20),
-                          child: Image.asset(
-                            'assets/game.png',
-                            fit: BoxFit.contain,
-                          ),
-                        ),
-
-                        // Indicador do último acerto
-                        if (lastHitPosition != null)
-                          Positioned(
-                            left: lastHitPosition!.dx - 15,
-                            top: lastHitPosition!.dy - 15,
-                            child: Container(
-                              width: 30,
-                              height: 30,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: (lastHitPoints ?? 0) >= 0
-                                    ? Colors.green.withValues(alpha: 0.8)
-                                    : Colors.red.withValues(alpha: 0.8),
-                                border: Border.all(color: Colors.white, width: 2),
-                              ),
-                              child: Center(
-                                child: Text(
-                                  '$lastHitPoints',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                      ],
+                    onTapDown: (details) {
+                      final RenderBox box = context.findRenderObject() as RenderBox;
+                      _handleBoardTap(details, box.size);
+                    },
+                    child: CustomPaint(
+                      size: const Size(320, 320),
+                      painter: DartboardPainter(),
                     ),
                   ),
                 ),
               ),
 
-              // Botão próximo jogador
+              // Botão próximo
               Padding(
                 padding: const EdgeInsets.all(16),
                 child: SizedBox(
@@ -769,4 +806,106 @@ class _GameScreenState extends State<GameScreen> {
       ),
     );
   }
+}
+
+// ==========================================
+// CUSTOM PAINTER - TABULEIRO
+// ==========================================
+class DartboardPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = size.width / 2;
+
+    // Desenhar cada segmento
+    for (final segment in segments) {
+      final startAngle = (segment.startAngle - 90) * pi / 180;
+      final sweepAngle = (segment.endAngle - segment.startAngle) * pi / 180;
+
+      final paint = Paint()
+        ..color = segment.color
+        ..style = PaintingStyle.fill;
+
+      canvas.drawArc(
+        Rect.fromCircle(center: center, radius: radius),
+        startAngle,
+        sweepAngle,
+        true,
+        paint,
+      );
+
+      // Desenhar valor no segmento
+      final midAngle = (segment.startAngle + segment.endAngle) / 2;
+      final midAngleRad = (midAngle - 90) * pi / 180;
+      final textRadius = radius * 0.7;
+      final textX = center.dx + textRadius * cos(midAngleRad);
+      final textY = center.dy + textRadius * sin(midAngleRad);
+
+      final textPainter = TextPainter(
+        text: TextSpan(
+          text: '${segment.points}',
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            shadows: [
+              Shadow(color: Colors.black, blurRadius: 4),
+            ],
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      );
+      textPainter.layout();
+      textPainter.paint(
+        canvas,
+        Offset(textX - textPainter.width / 2, textY - textPainter.height / 2),
+      );
+    }
+
+    // Círculo central (bullseye)
+    final centerPaint = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.fill;
+    canvas.drawCircle(center, radius * 0.15, centerPaint);
+
+    final centerTextPainter = TextPainter(
+      text: const TextSpan(
+        text: '100',
+        style: TextStyle(
+          color: Colors.black,
+          fontSize: 14,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    );
+    centerTextPainter.layout();
+    centerTextPainter.paint(
+      canvas,
+      Offset(
+        center.dx - centerTextPainter.width / 2,
+        center.dy - centerTextPainter.height / 2,
+      ),
+    );
+
+    // Borda externa
+    final borderPaint = Paint()
+      ..color = Colors.amber
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 6;
+    canvas.drawCircle(center, radius, borderPaint);
+
+    // Anéis guia (opcionais, para referência visual)
+    final guidePaint = Paint()
+      ..color = Colors.white.withValues(alpha: 0.2)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1;
+
+    canvas.drawCircle(center, radius * 0.25, guidePaint);
+    canvas.drawCircle(center, radius * 0.5, guidePaint);
+    canvas.drawCircle(center, radius * 0.75, guidePaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
