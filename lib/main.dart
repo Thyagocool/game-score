@@ -372,13 +372,17 @@ class _GameScreenState extends State<GameScreen> {
     final centerX = boardSize.width / 2;
     final centerY = boardSize.height / 2;
 
-    // Calcular ângulo do toque (em graus, sentido horário)
+    // Calcular ângulo do toque
     final dx = localPosition.dx - centerX;
     final dy = localPosition.dy - centerY;
+    
+    // atan2 retorna de -pi a pi, converter para 0-360
     var angle = atan2(dy, dx) * 180 / pi;
     if (angle < 0) angle += 360;
 
-    // Rotacionar 90 graus para começar do topo
+    // Rotacionar para começar do topo (12h = 0°)
+    // No Flutter: 0° = direita, 90° = baixo
+    // Queremos: 0° = cima, 90° = direita
     angle = (angle + 90) % 360;
 
     // Calcular distância do centro
@@ -400,21 +404,8 @@ class _GameScreenState extends State<GameScreen> {
 
     if (hitSegment == null) return;
 
-    // Calcular pontos baseado na distância
-    int points;
-    if (normalizedDistance < 0.25) {
-      // Centro - maior pontuação
-      points = 100;
-    } else if (normalizedDistance < 0.5) {
-      // Anel interno
-      points = (hitSegment.points * 1.5).round();
-    } else if (normalizedDistance < 0.75) {
-      // Anel médio
-      points = hitSegment.points;
-    } else {
-      // Anel externo
-      points = (hitSegment.points * 0.5).round();
-    }
+    // Pontuação simples: retorna o valor exato do segmento
+    final points = hitSegment.points;
 
     setState(() {
       lastHitSegment = hitSegment;
