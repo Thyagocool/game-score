@@ -372,26 +372,25 @@ class _GameScreenState extends State<GameScreen> {
     final centerX = boardSize.width / 2;
     final centerY = boardSize.height / 2;
 
-    // Calcular ângulo do toque
+    // Vetor do centro até o toque
     final dx = localPosition.dx - centerX;
     final dy = localPosition.dy - centerY;
-    
-    // atan2 retorna de -pi a pi, converter para 0-360
-    var angle = atan2(dy, dx) * 180 / pi;
-    if (angle < 0) angle += 360;
-
-    // Rotacionar para começar do topo (12h = 0°)
-    // No Flutter: 0° = direita, 90° = baixo
-    // Queremos: 0° = cima, 90° = direita
-    angle = (angle + 90) % 360;
 
     // Calcular distância do centro
     final distance = sqrt(dx * dx + dy * dy);
     final maxRadius = boardSize.width / 2;
-    final normalizedDistance = distance / maxRadius;
 
     // Verificar se está dentro do tabuleiro
-    if (normalizedDistance > 1.0) return;
+    if (distance > maxRadius) return;
+
+    // Calcular ângulo em graus (0-360)
+    // atan2: 0 = direita, + = anti-horário
+    // Queremos: 0 = cima, + = horário
+    var angle = atan2(dx, -dy) * 180 / pi;
+    if (angle < 0) angle += 360;
+
+    // Debug: print para verificar
+    // print('TOQUE: dx=$dx, dy=$dy, angle=$angle, distance=$distance');
 
     // Encontrar qual segmento foi tocado
     DartboardSegment? hitSegment;
@@ -402,10 +401,15 @@ class _GameScreenState extends State<GameScreen> {
       }
     }
 
-    if (hitSegment == null) return;
+    if (hitSegment == null) {
+      // print('NENHUM SEGMENTO ENCONTRADO para angle=$angle');
+      return;
+    }
 
     // Pontuação simples: retorna o valor exato do segmento
     final points = hitSegment.points;
+
+    // print('ACERTOU: ${hitSegment.name} = $points pontos');
 
     setState(() {
       lastHitSegment = hitSegment;
@@ -810,8 +814,11 @@ class DartboardPainter extends CustomPainter {
 
     // Desenhar cada segmento
     for (final segment in segments) {
-      final startAngle = (segment.startAngle - 90) * pi / 180;
-      final sweepAngle = (segment.endAngle - segment.startAngle) * pi / 180;
+      // Converter ângulos do nosso sistema (0=cima, horário) para o Flutter
+      // Flutter: 0=direita, anti-horário positivo
+      // Nós: 0=cima, horário positivo
+      final startAngle = -(segment.startAngle) * pi / 180;
+      final sweepAngle = -(segment.endAngle - segment.startAngle) * pi / 180;
 
       final paint = Paint()
         ..color = segment.color
@@ -826,11 +833,10 @@ class DartboardPainter extends CustomPainter {
       );
 
       // Desenhar valor no segmento
-      final midAngle = (segment.startAngle + segment.endAngle) / 2;
-      final midAngleRad = (midAngle - 90) * pi / 180;
+      final midAngle = -(segment.startAngle + segment.endAngle) / 2 * pi / 180;
       final textRadius = radius * 0.7;
-      final textX = center.dx + textRadius * cos(midAngleRad);
-      final textY = center.dy + textRadius * sin(midAngleRad);
+      final textX = center.dx + textRadius * cos(midAngle);
+      final textY = center.dy + textRadius * sin(midAngle);
 
       final textPainter = TextPainter(
         text: TextSpan(
