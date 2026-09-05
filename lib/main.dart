@@ -1,4 +1,3 @@
-import 'dart:math';
 import 'package:flutter/material.dart';
 
 void main() {
@@ -11,7 +10,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Roleta Espacial',
+      title: 'Marcador de Dardos',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
@@ -20,119 +19,250 @@ class MyApp extends StatelessWidget {
         ),
         useMaterial3: true,
       ),
-      home: const RouletteScreen(),
+      home: const HomeScreen(),
     );
   }
 }
 
-class RouletteScreen extends StatefulWidget {
-  const RouletteScreen({super.key});
+// Tela inicial - Cadastro de Jogadores
+class HomeScreen extends StatefulWidget {
+  const HomeScreen({super.key});
 
   @override
-  State<RouletteScreen> createState() => _RouletteScreenState();
+  State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _RouletteScreenState extends State<RouletteScreen>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _animation;
-  double _currentRotation = 0;
-  int? _resultIndex;
-  bool _isSpinning = false;
+class _HomeScreenState extends State<HomeScreen> {
+  final List<String> players = [];
+  final TextEditingController _nameController = TextEditingController();
 
-  // Dados da roleta
-  final List<Color> segmentColors = [
-    const Color(0xFF2196F3), // Azul - 10
-    const Color(0xFFE91E63), // Rosa - 80
-    const Color(0xFF4CAF50), // Verde - -10
-    const Color(0xFFFF9800), // Laranja - 60
-    const Color(0xFF9C27B0), // Roxo - 30
-    const Color(0xFFFFEB3B), // Amarelo - 100
-    const Color(0xFF00BCD4), // Ciano - 50
-    const Color(0xFFFF5722), // Vermelho - 20
-  ];
+  void _addPlayer() {
+    if (_nameController.text.isNotEmpty) {
+      setState(() {
+        players.add(_nameController.text);
+        _nameController.clear();
+      });
+    }
+  }
 
+  void _startGame() {
+    if (players.isNotEmpty) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => GameScreen(players: List.from(players)),
+        ),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Color(0xFF1a0533),
+              Color(0xFF0d0d2b),
+              Color(0xFF000011),
+            ],
+          ),
+        ),
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              children: [
+                // Título
+                const Text(
+                  '🎯 JOGO DE DARDOS 🎯',
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    letterSpacing: 2,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                const Text(
+                  'Adicione os jogadores para começar',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.white70,
+                  ),
+                ),
+                const SizedBox(height: 30),
+
+                // Campo de entrada
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _nameController,
+                        style: const TextStyle(color: Colors.white),
+                        decoration: InputDecoration(
+                          labelText: 'Nome do jogador',
+                          labelStyle: const TextStyle(color: Colors.white70),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(15),
+                            borderSide: const BorderSide(color: Colors.white30),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(15),
+                            borderSide: const BorderSide(color: Colors.white30),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(15),
+                            borderSide: const BorderSide(color: Colors.amber),
+                          ),
+                        ),
+                        onSubmitted: (_) => _addPlayer(),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    ElevatedButton(
+                      onPressed: _addPlayer,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.amber,
+                        foregroundColor: Colors.black,
+                        padding: const EdgeInsets.all(15),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(15),
+                        ),
+                      ),
+                      child: const Icon(Icons.add, size: 24),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+
+                // Lista de jogadores
+                Expanded(
+                  child: players.isEmpty
+                      ? const Center(
+                          child: Text(
+                            'Nenhum jogador adicionado',
+                            style: TextStyle(color: Colors.white54, fontSize: 16),
+                          ),
+                        )
+                      : ListView.builder(
+                          itemCount: players.length,
+                          itemBuilder: (context, index) {
+                            return Card(
+                              color: Colors.white.withValues(alpha: 0.1),
+                              child: ListTile(
+                                leading: CircleAvatar(
+                                  backgroundColor: Colors.amber,
+                                  child: Text(
+                                    '${index + 1}',
+                                    style: const TextStyle(color: Colors.black),
+                                  ),
+                                ),
+                                title: Text(
+                                  players[index],
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 18,
+                                  ),
+                                ),
+                                trailing: IconButton(
+                                  icon: const Icon(Icons.delete, color: Colors.red),
+                                  onPressed: () {
+                                    setState(() {
+                                      players.removeAt(index);
+                                    });
+                                  },
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                ),
+
+                // Botão iniciar
+                SizedBox(
+                  width: double.infinity,
+                  height: 55,
+                  child: ElevatedButton(
+                    onPressed: players.length >= 2 ? _startGame : null,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.amber,
+                      foregroundColor: Colors.black,
+                      disabledBackgroundColor: Colors.grey,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(15),
+                      ),
+                    ),
+                    child: Text(
+                      players.length >= 2
+                          ? 'INICIAR JOGO (${players.length} jogadores)'
+                          : 'Adicione pelo menos 2 jogadores',
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// Tela do Jogo
+class GameScreen extends StatefulWidget {
+  final List<String> players;
+
+  const GameScreen({super.key, required this.players});
+
+  @override
+  State<GameScreen> createState() => _GameScreenState();
+}
+
+class _GameScreenState extends State<GameScreen> {
+  late Map<String, int> scores;
+  String? selectedPlayer;
+
+  // Valores dos segmentos (baseado na imagem)
+  // A imagem tem 8 segmentos com valores: 10, 80, -10, 60, 30, 100, 50, 20
   final List<int> segmentValues = [10, 80, -10, 60, 30, 100, 50, 20];
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
-      duration: const Duration(seconds: 4),
-      vsync: this,
-    );
+    scores = {for (var player in widget.players) player: 0};
+    selectedPlayer = widget.players.first;
+  }
 
-    _animation = Tween<double>(
-      begin: 0,
-      end: 1,
-    ).animate(CurvedAnimation(
-      parent: _controller,
-      curve: Curves.decelerate,
-    ));
-
-    _controller.addListener(() {
+  void _addPoints(int points) {
+    if (selectedPlayer != null) {
       setState(() {
-        _currentRotation = _animation.value;
+        scores[selectedPlayer!] = scores[selectedPlayer!]! + points;
       });
-    });
 
-    _controller.addStatusListener((status) {
-      if (status == AnimationStatus.completed) {
-        _calculateResult();
-        setState(() {
-          _isSpinning = false;
-        });
-      }
-    });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '$selectedPlayer ganhou $points pontos!',
+            style: const TextStyle(fontSize: 16),
+          ),
+          backgroundColor: points > 0 ? Colors.green : Colors.red,
+          duration: const Duration(seconds: 1),
+        ),
+      );
+    }
   }
 
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  void _spin() {
-    if (_isSpinning) return;
-
+  void _resetScores() {
     setState(() {
-      _isSpinning = true;
-      _resultIndex = null;
-    });
-
-    // Sortear resultado
-    final random = Random();
-    final selectedIndex = random.nextInt(segmentColors.length);
-
-    // Calcular rotação (mínimo 5 giros + posição do segmento)
-    final segmentAngle = 2 * pi / segmentColors.length;
-    final targetAngle = 5 * 2 * pi + (selectedIndex * segmentAngle);
-
-    _animation = Tween<double>(
-      begin: _currentRotation,
-      end: _currentRotation + targetAngle,
-    ).animate(CurvedAnimation(
-      parent: _controller,
-      curve: Curves.decelerate,
-    ));
-
-    _controller.reset();
-    _controller.forward();
-  }
-
-  void _calculateResult() {
-    // Calcular qual segmento está no topo (posição do indicador)
-    final normalizedRotation = _currentRotation % (2 * pi);
-    final segmentAngle = 2 * pi / segmentColors.length;
-    
-    // O indicador está no topo (ângulo -pi/2 ou 3*pi/2)
-    final indicatorAngle = 3 * pi / 2;
-    final adjustedAngle = (indicatorAngle - normalizedRotation) % (2 * pi);
-    
-    final index = (adjustedAngle / segmentAngle).floor() % segmentColors.length;
-    
-    setState(() {
-      _resultIndex = index;
+      scores = {for (var player in widget.players) player: 0};
     });
   }
 
@@ -153,225 +283,154 @@ class _RouletteScreenState extends State<RouletteScreen>
         ),
         child: SafeArea(
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // Título
-              const Text(
-                '🚀 ROLETA ESPACIAL 🛸',
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                  letterSpacing: 2,
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              // Roleta com indicador
-              Expanded(
-                child: Center(
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      // Roleta girando
-                      Transform.rotate(
-                        angle: _currentRotation,
-                        child: SizedBox(
-                          width: 320,
-                          height: 320,
-                          child: CustomPaint(
-                            painter: RoulettePainter(
-                              segmentColors: segmentColors,
-                              segmentValues: segmentValues,
+              // Header com placar
+              Container(
+                padding: const EdgeInsets.all(15),
+                child: Column(
+                  children: [
+                    const Text(
+                      '🎯 PLACAR',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    // Placar dos jogadores
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: widget.players.map((player) {
+                        final isSelected = player == selectedPlayer;
+                        return GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              selectedPlayer = player;
+                            });
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 10,
+                            ),
+                            decoration: BoxDecoration(
+                                  color: isSelected
+                                  ? Colors.amber.withValues(alpha: 0.3)
+                                  : Colors.white.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(15),
+                              border: Border.all(
+                                color: isSelected ? Colors.amber : Colors.white30,
+                                width: 2,
+                              ),
+                            ),
+                            child: Column(
+                              children: [
+                                Text(
+                                  player,
+                                  style: TextStyle(
+                                    color: isSelected ? Colors.amber : Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                                const SizedBox(height: 5),
+                                Text(
+                                  '${scores[player]}',
+                                  style: TextStyle(
+                                    color: isSelected ? Colors.amber : Colors.white70,
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                        ),
+                        );
+                      }).toList(),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Imagem do tabuleiro
+              Expanded(
+                child: Center(
+                  child: GestureDetector(
+                    onTapDown: (details) {
+                      _handleTap(details.localPosition);
+                    },
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(20),
+                      child: Image.asset(
+                        'assets/game.png',
+                        fit: BoxFit.contain,
                       ),
-                      // Indicador (triângulo no topo)
-                      Positioned(
-                        top: 10,
-                        child: CustomPaint(
-                          size: const Size(30, 40),
-                          painter: IndicatorPainter(),
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
               ),
 
-              // Resultado
+              // Instrução
               Container(
-                margin: const EdgeInsets.symmetric(vertical: 10),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 30,
-                  vertical: 15,
-                ),
+                margin: const EdgeInsets.symmetric(horizontal: 20),
+                padding: const EdgeInsets.all(15),
                 decoration: BoxDecoration(
-                  color: _resultIndex != null
-                      ? segmentColors[_resultIndex!].withValues(alpha: 0.3)
-                      : Colors.white.withValues(alpha: 0.1),
+                              color: Colors.white.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(15),
-                  border: Border.all(
-                    color: _resultIndex != null
-                        ? segmentColors[_resultIndex!]
-                        : Colors.white30,
-                    width: 2,
-                  ),
                 ),
                 child: Text(
-                  _resultIndex != null
-                      ? '🎉 ${segmentValues[_resultIndex!]} pontos!'
-                      : 'Gire para jogar!',
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: _resultIndex != null
-                        ? segmentColors[_resultIndex!]
-                        : Colors.white70,
+                  'Toque na imagem onde o dardo acertou!\nJogador atual: $selectedPlayer',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 14,
                   ),
                 ),
               ),
 
               const SizedBox(height: 10),
 
-              // Botão de girar
-              ElevatedButton(
-                onPressed: _isSpinning ? null : _spin,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.amber,
-                  foregroundColor: Colors.black,
-                  disabledBackgroundColor: Colors.grey,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 40,
-                    vertical: 15,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(30),
-                  ),
-                ),
-                child: Text(
-                  _isSpinning ? '⏳ GIRANDO...' : 'GIRAR 🎰',
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
+              // Botões de ação
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Row(
+                  children: [
+                    // Botão resetar
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: _resetScores,
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.red,
+                          side: const BorderSide(color: Colors.red),
+                          padding: const EdgeInsets.symmetric(vertical: 15),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(15),
+                          ),
+                        ),
+                        child: const Text(
+                          'ZERAR PLACAR',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 30),
+
+              const SizedBox(height: 20),
             ],
           ),
         ),
       ),
     );
   }
-}
 
-class RoulettePainter extends CustomPainter {
-  final List<Color> segmentColors;
-  final List<int> segmentValues;
-
-  RoulettePainter({
-    required this.segmentColors,
-    required this.segmentValues,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
-    final radius = size.width / 2;
-
-    final segmentAngle = 2 * pi / segmentColors.length;
-
-    for (int i = 0; i < segmentColors.length; i++) {
-      final startAngle = i * segmentAngle;
-      final paint = Paint()
-        ..color = segmentColors[i]
-        ..style = PaintingStyle.fill;
-
-      canvas.drawArc(
-        Rect.fromCircle(center: center, radius: radius),
-        startAngle,
-        segmentAngle,
-        true,
-        paint,
-      );
-
-      // Desenhar valor
-      final textAngle = startAngle + segmentAngle / 2;
-      final textRadius = radius * 0.65;
-      final textX = center.dx + textRadius * cos(textAngle);
-      final textY = center.dy + textRadius * sin(textAngle);
-
-      final textPainter = TextPainter(
-        text: TextSpan(
-          text: segmentValues[i].toString(),
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            shadows: [
-              Shadow(
-                color: Colors.black,
-                blurRadius: 3,
-              ),
-            ],
-          ),
-        ),
-        textDirection: TextDirection.ltr,
-      );
-
-      textPainter.layout();
-      textPainter.paint(
-        canvas,
-        Offset(
-          textX - textPainter.width / 2,
-          textY - textPainter.height / 2,
-        ),
-      );
-    }
-
-    // Círculo central
-    final centerPaint = Paint()
-      ..color = Colors.white
-      ..style = PaintingStyle.fill;
-    canvas.drawCircle(center, radius * 0.15, centerPaint);
-
-    // Borda externa
-    final borderPaint = Paint()
-      ..color = Colors.amber
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 8;
-    canvas.drawCircle(center, radius, borderPaint);
+  void _handleTap(Offset localPosition) {
+    // Aqui você pode implementar a lógica para identificar qual segmento foi tocado
+    // Por enquanto, vou adicionar pontos aleatórios baseado na posição
+    final random = localPosition.dx % segmentValues.length;
+    final points = segmentValues[random.toInt() % segmentValues.length];
+    _addPoints(points);
   }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-class IndicatorPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = Colors.white
-      ..style = PaintingStyle.fill;
-
-    final path = Path()
-      ..moveTo(size.width / 2, size.height)
-      ..lineTo(0, 0)
-      ..lineTo(size.width, 0)
-      ..close();
-
-    canvas.drawPath(path, paint);
-
-    // Borda do indicador
-    final borderPaint = Paint()
-      ..color = Colors.amber
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 3;
-    canvas.drawPath(path, borderPaint);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
